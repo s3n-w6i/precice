@@ -3,6 +3,7 @@
 #include <boost/uuid/name_generator.hpp>
 #include <boost/uuid/string_generator.hpp>
 #include <boost/uuid/uuid_io.hpp>
+#include <libmemcached/memcached.h>
 
 #include <chrono>
 #include <filesystem>
@@ -71,92 +72,63 @@ std::string ConnectionInfoPublisher::getFilename() const
 
 std::string ConnectionInfoReader::read() const
 {
-  auto path = getFilename();
+  auto addr = "127.0.0.1";
+  auto port = 11211;
 
-  PRECICE_DEBUG("Waiting for connection file \"{}\"", path);
-  const auto waitdelay = std::chrono::milliseconds(1);
-  while (!fs::exists(path)) {
-    std::this_thread::sleep_for(waitdelay);
-  }
-  PRECICE_ASSERT(fs::exists(path));
-  PRECICE_DEBUG("Found connection file \"{}\"", path);
+  auto          config = fmt::format("--SERVER={}:{}", addr, port);
+  memcached_st *memc   = memcached(config.data(), config.length());
 
-  std::ifstream ifs(path);
-  PRECICE_CHECK(ifs,
-                "Unable to establish connection as the connection file \"{}\" couldn't be opened.",
-                path);
-  std::string addressData;
-  std::getline(ifs, addressData);
-  PRECICE_CHECK(!addressData.empty(),
-                "Unable to establish connection as the connection file \"{}\" is empty. "
-                "Please report this bug to the preCICE developers.",
-                path);
-  boost::algorithm::trim_right(addressData);
-  return addressData;
+  auto key = fmt::format("{}-{}-{}-{}", acceptorName, requesterName, tag, rank);
+
+  // Retrieve the value
+  size_t           value_length;
+  uint32_t         flags;
+  memcached_return rc;
+  char *           retrieved_value;
+
+  do {
+    retrieved_value = memcached_get(memc, &key.front(), key.length(), &value_length, &flags, &rc);
+  } while (rc == MEMCACHED_NOTFOUND);
+
+  PRECICE_CHECK(rc == MEMCACHED_SUCCESS, "Failed to read key {} from memcached server {}:{}. {}", key, addr, port, memcached_strerror(memc, rc));
+
+  std::string value(retrieved_value, value_length);
+  PRECICE_WARN("S SUCCESS {}", retrieved_value);
+  free(retrieved_value);
+  memcached_free(memc);
+  return value;
 }
 
 ConnectionInfoWriter::~ConnectionInfoWriter()
 {
-  fs::path path(getFilename());
-  if (!fs::exists(path)) {
-    PRECICE_WARN("Cannot clean-up the connection file \"{}\" as it doesn't exist. "
-                 "In case of connection problems, please report this to the preCICE developers.",
-                 path.generic_string());
-    return;
-  }
-  PRECICE_DEBUG("Deleting connection file \"{}\"", path.generic_string());
-  try {
-    fs::remove(path);
-    PRECICE_WARN_IF(
-        fs::exists(path),
-        "The connection file \"{}\" wasn't properly removed. "
-        "Make sure to delete the \"precice-run\" directory before restarting the simulation.",
-        path.generic_string());
-  } catch (const fs::filesystem_error &e) {
-    PRECICE_WARN("Unable to clean-up connection file due to error: {}. "
-                 "Make sure to delete the \"precice-run\" directory before restarting the simulation.",
-                 e.what());
-  }
+  auto addr = "127.0.0.1";
+  auto port = 11211;
+
+  auto          config = fmt::format("--SERVER={}:{}", addr, port);
+  memcached_st *memc   = memcached(config.data(), config.length());
+
+  auto key = fmt::format("{}-{}-{}-{}", acceptorName, requesterName, tag, rank);
+
+  auto rc = memcached_delete(memc, &key.front(), key.length(), (time_t) 0);
+  PRECICE_WARN_IF(rc != MEMCACHED_SUCCESS, "Failed to delete key {} from memcached server {}:{}. {}", key, addr, port, memcached_strerror(memc, rc));
+
+  memcached_free(memc);
 }
 
 void ConnectionInfoWriter::write(std::string_view info) const
 {
-  auto path = getFilename();
-  auto tmp  = fs::path(path + "~");
 
-  {
-    auto message = "Unable to establish connection as a {}connection file already exists at \"{}\". "
-                   "This is likely a leftover of a previous crash or stop during communication build-up. "
-                   "Please remove the \"precice-run\" directory and restart the simulation.";
-    PRECICE_CHECK(!fs::exists(path), message, "", path);
-    PRECICE_CHECK(!fs::exists(tmp), message, "temporary ");
-  }
+  auto addr = "127.0.0.1";
+  auto port = 11211;
 
-  PRECICE_DEBUG("Writing temporary connection file \"{}\"", tmp.generic_string());
-  fs::create_directories(tmp.parent_path());
-  {
-    std::ofstream ofs(tmp.string());
-    PRECICE_CHECK(ofs, "Unable to establish connection as the temporary connection file \"{}\" couldn't be opened.", tmp.generic_string());
-    fmt::print(ofs,
-               "{}\nAcceptor: {}, Requester: {}, Tag: {}, Rank: {}",
-               info, acceptorName, requesterName, tag, rank);
-  }
-  PRECICE_CHECK(fs::exists(tmp),
-                "Unable to establish connection as the temporary connection file \"{}\" was written, but doesn't exist on disk. "
-                "Please report this bug to the preCICE developers.",
-                tmp.generic_string());
+  auto          config = fmt::format("--SERVER={}:{}", addr, port);
+  memcached_st *memc   = memcached(config.data(), config.length());
 
-  PRECICE_DEBUG("Publishing connection file \"{}\"", path);
-  fs::rename(tmp, path);
-  PRECICE_WARN_IF(
-      fs::exists(tmp),
-      "The temporary connection file \"{}\" wasn't properly removed. "
-      "Make sure to delete the \"precice-run\" directory before restarting the simulation.",
-      tmp.generic_string());
-  PRECICE_CHECK(fs::exists(path),
-                "Unable to establish connection as the connection file \"{}\" doesn't exist on disk. "
-                "Please report this bug to the preCICE developers.",
-                path);
+  auto key = fmt::format("{}-{}-{}-{}", acceptorName, requesterName, tag, rank);
+  auto rc  = memcached_add(memc, &key.front(), key.length(), &info.front(), info.length(), (time_t) 0, (uint32_t) 0);
+  PRECICE_CHECK(rc == MEMCACHED_SUCCESS, "Failed to add key {} to memcached server {}:{}. {}", key, addr, port, memcached_strerror(memc, rc));
+
+  memcached_free(memc);
 }
 
 } // namespace precice::com
