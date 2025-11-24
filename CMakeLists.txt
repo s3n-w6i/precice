@@ -211,6 +211,11 @@ mark_as_advanced(Boost_INCLUDE_DIR Boost_LOG_LIBRARY_RELEASE Boost_LOG_SETUP_LIB
 mark_as_advanced(Boost_INCLUDE_DIR Boost_LOG_LIBRARY_DEBUG Boost_LOG_SETUP_LIBRARY_DEBUG Boost_PROGRAM_OPTIONS_LIBRARY_DEBUG Boost_SYSTEM_LIBRARY_DEBUG Boost_THREAD_LIBRARY_DEBUG Boost_UNIT_TEST_FRAMEWORK_LIBRARY_DEBUG)
 message(STATUS "Found Boost ${Boost_VERSION}")
 
+
+find_package(PkgConfig REQUIRED)
+set(PKG_CONFIG_USE_CMAKE_PREFIX_PATH "YES")
+pkg_check_modules(memcached IMPORTED_TARGET REQUIRED GLOBAL "libmemcached")
+
 # Eigen
 if(TPL_ENABLE_EIGEN3)
   # Use EIGEN3_ROOT to set the directory
@@ -428,6 +433,8 @@ endif()
 
 # Force Intel compiler to honor nan and infinite and use value-preserving floating point mode
 target_compile_options(preciceCore PUBLIC $<$<CXX_COMPILER_ID:IntelLLVM>:-fhonor-infinities -fhonor-nans -fp-model=precise>)
+
+target_link_libraries(preciceCore PUBLIC PkgConfig::memcached)
 
 # Setup Eigen3
 target_link_libraries(preciceCore PUBLIC Eigen3::Eigen)
