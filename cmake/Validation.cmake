@@ -94,3 +94,11 @@ macro(precice_validate_eigen)
     NAME Eigen
     LINK_LIBRARIES Eigen3::Eigen)
 endmacro()
+
+# Validation for libmemcached
+macro(precice_validate_libmemcached)
+  precice_validate_lib(
+    "#include <libmemcached/memcached.h>\nint main() { return 0; } "
+    NAME Libmemcached
+    LINK_LIBRARIES libmemcached)
+endmacro()

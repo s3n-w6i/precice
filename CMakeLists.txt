@@ -211,10 +211,11 @@ mark_as_advanced(Boost_INCLUDE_DIR Boost_LOG_LIBRARY_RELEASE Boost_LOG_SETUP_LIB
 mark_as_advanced(Boost_INCLUDE_DIR Boost_LOG_LIBRARY_DEBUG Boost_LOG_SETUP_LIBRARY_DEBUG Boost_PROGRAM_OPTIONS_LIBRARY_DEBUG Boost_SYSTEM_LIBRARY_DEBUG Boost_THREAD_LIBRARY_DEBUG Boost_UNIT_TEST_FRAMEWORK_LIBRARY_DEBUG)
 message(STATUS "Found Boost ${Boost_VERSION}")
 
-
+# Libmemcached
 find_package(PkgConfig REQUIRED)
 set(PKG_CONFIG_USE_CMAKE_PREFIX_PATH "YES")
 pkg_check_modules(memcached IMPORTED_TARGET REQUIRED GLOBAL "libmemcached")
+precice_validate_libmemcached()
 
 # Eigen
 if(TPL_ENABLE_EIGEN3)
