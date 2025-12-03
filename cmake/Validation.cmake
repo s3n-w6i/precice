@@ -100,5 +100,5 @@ macro(precice_validate_libmemcached)
   precice_validate_lib(
     "#include <libmemcached/memcached.h>\nint main() { return 0; } "
     NAME Libmemcached
-    LINK_LIBRARIES libmemcached)
+    LINK_LIBRARIES PkgConfig::memcached)
 endmacro()
