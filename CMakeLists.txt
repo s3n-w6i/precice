@@ -215,6 +215,7 @@ message(STATUS "Found Boost ${Boost_VERSION}")
 find_package(PkgConfig REQUIRED)
 set(PKG_CONFIG_USE_CMAKE_PREFIX_PATH "YES")
 pkg_check_modules(memcached IMPORTED_TARGET REQUIRED GLOBAL "libmemcached")
+message(STATUS "Found Libmemcached")
 precice_validate_libmemcached()
 
 # Eigen
@@ -443,6 +444,9 @@ target_compile_definitions(preciceCore PUBLIC "$<$<CONFIG:DEBUG>:EIGEN_INITIALIZ
 
 # Setup LIBXML2
 target_link_libraries(preciceCore PUBLIC LibXml2::LibXml2)
+
+# Setup Libmemcached
+target_link_libraries(preciceCore PUBLIC PkgConfig::memcached)
 
 # Setup FMT
 target_link_libraries(preciceCore PUBLIC fmtlib-static)
