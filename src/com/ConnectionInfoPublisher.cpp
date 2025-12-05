@@ -96,6 +96,11 @@ ConnectionInfoWriter::~ConnectionInfoWriter()
 
   auto key = fmt::format("{}-{}-{}-{}", acceptorName, requesterName, tag, rank);
 
+  PRECICE_WARN_IF(memcached_exist(memc, &key.front(), key.length()) == MEMCACHED_SUCCESS,
+                  "The connection key \"{}\" wasn't properly removed. "
+                  "Make sure to restart the memcached server before restarting the simulation.",
+                  key);
+
   auto rc = memcached_delete(memc, &key.front(), key.length(), (time_t) 0);
   PRECICE_WARN_IF(rc != MEMCACHED_SUCCESS, "Failed to delete key {} from memcached server {}:{}. {}", key, addr, port, memcached_strerror(memc, rc));
 
