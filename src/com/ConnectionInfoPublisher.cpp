@@ -59,11 +59,17 @@ std::string ConnectionInfoPublisher::getFilename() const
 
 std::string ConnectionInfoReader::read() const
 {
+  Event e("ConnectionInfoReader.read");
+  Event e1("ConnectionInfoReader.read.createMemcachedClient");
+
   auto addr = "127.0.0.1";
   auto port = 11211;
 
   auto          config = fmt::format("--SERVER={}:{}", addr, port);
   memcached_st *memc   = memcached(config.data(), config.length());
+
+  e1.stop();
+  Event e2("ConnectionInfoReader.read.getValue");
 
   auto key = fmt::format("{}-{}-{}-{}", acceptorName, requesterName, tag, rank);
 
@@ -79,48 +85,70 @@ std::string ConnectionInfoReader::read() const
 
   PRECICE_CHECK(rc == MEMCACHED_SUCCESS, "Failed to read key {} from memcached server {}:{}. {}", key, addr, port, memcached_strerror(memc, rc));
 
+  e2.stop();
+  Event e3("ConnectionInfoReader.read.free");
+
   std::string value(retrieved_value, value_length);
   PRECICE_WARN("S SUCCESS {}", retrieved_value);
   free(retrieved_value);
   memcached_free(memc);
+
+  e3.stop();
+
   return value;
 }
 
 ConnectionInfoWriter::~ConnectionInfoWriter()
 {
+  Event e("ConnectionInfoWriter.init");
+  Event e1("ConnectionInfoWriter.init.createMemcachedClient");
+
   auto addr = "127.0.0.1";
   auto port = 11211;
 
   auto          config = fmt::format("--SERVER={}:{}", addr, port);
   memcached_st *memc   = memcached(config.data(), config.length());
 
-  auto key = fmt::format("{}-{}-{}-{}", acceptorName, requesterName, tag, rank);
+  e1.stop();
+  Event e2("ConnectionInfoWriter.init.deletePreExistingValue");
 
-  PRECICE_WARN_IF(memcached_exist(memc, &key.front(), key.length()) == MEMCACHED_SUCCESS,
-                  "The connection key \"{}\" wasn't properly removed. "
-                  "Make sure to restart the memcached server before restarting the simulation.",
-                  key);
+  auto key = fmt::format("{}-{}-{}-{}", acceptorName, requesterName, tag, rank);
 
   auto rc = memcached_delete(memc, &key.front(), key.length(), (time_t) 0);
   PRECICE_WARN_IF(rc != MEMCACHED_SUCCESS, "Failed to delete key {} from memcached server {}:{}. {}", key, addr, port, memcached_strerror(memc, rc));
 
+  e2.stop();
+  Event e3("ConnectionInfoWriter.init.freeMemcachedClient");
+
   memcached_free(memc);
+
+  e3.stop();
 }
 
 void ConnectionInfoWriter::write(std::string_view info) const
 {
+  Event e("ConnectionInfoWriter.write");
+  Event e1("ConnectionInfoWriter.write.createMemcachedClient");
 
   auto addr = "127.0.0.1";
   auto port = 11211;
 
   auto          config = fmt::format("--SERVER={}:{}", addr, port);
   memcached_st *memc   = memcached(config.data(), config.length());
+
+  e1.stop();
+  Event e2("ConnectionInfoWriter.write.addValue");
 
   auto key = fmt::format("{}-{}-{}-{}", acceptorName, requesterName, tag, rank);
   auto rc  = memcached_add(memc, &key.front(), key.length(), &info.front(), info.length(), (time_t) 0, (uint32_t) 0);
   PRECICE_CHECK(rc == MEMCACHED_SUCCESS, "Failed to add key {} to memcached server {}:{}. {}", key, addr, port, memcached_strerror(memc, rc));
 
+  e2.stop();
+  Event e3("ConnectionInfoWriter.write.freeMemcachedClient");
+
   memcached_free(memc);
+
+  e3.stop();
 }
 
 } // namespace precice::com
