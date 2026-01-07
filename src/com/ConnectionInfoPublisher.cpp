@@ -62,10 +62,9 @@ std::string ConnectionInfoReader::read() const
   Event e("ConnectionInfoReader.read");
   Event e1("ConnectionInfoReader.read.createMemcachedClient");
 
-  auto addr = "127.0.0.1";
-  auto port = 11211;
+  auto port = 11211; // TODO: Do not hardcode
 
-  auto          config = fmt::format("--SERVER={}:{}", addr, port);
+  auto          config = fmt::format("--SERVER={}:{}", networkInterfaceIpAddr, port);
   memcached_st *memc   = memcached(config.data(), config.length());
 
   e1.stop();
@@ -83,7 +82,7 @@ std::string ConnectionInfoReader::read() const
     retrieved_value = memcached_get(memc, &key.front(), key.length(), &value_length, &flags, &rc);
   } while (rc == MEMCACHED_NOTFOUND);
 
-  PRECICE_CHECK(rc == MEMCACHED_SUCCESS, "Failed to read key {} from memcached server {}:{}. {}", key, addr, port, memcached_strerror(memc, rc));
+  PRECICE_CHECK(rc == MEMCACHED_SUCCESS, "Failed to read key {} from memcached server {}:{}. {}", key, networkInterfaceIpAddr, port, memcached_strerror(memc, rc));
 
   e2.stop();
   Event e3("ConnectionInfoReader.read.free");
@@ -103,10 +102,9 @@ ConnectionInfoWriter::~ConnectionInfoWriter()
   Event e("ConnectionInfoWriter.init");
   Event e1("ConnectionInfoWriter.init.createMemcachedClient");
 
-  auto addr = "127.0.0.1";
-  auto port = 11211;
+  auto port = 11211; // TODO: Do not hardcode
 
-  auto          config = fmt::format("--SERVER={}:{}", addr, port);
+  auto          config = fmt::format("--SERVER={}:{}", networkInterfaceIpAddr, port);
   memcached_st *memc   = memcached(config.data(), config.length());
 
   e1.stop();
@@ -115,7 +113,7 @@ ConnectionInfoWriter::~ConnectionInfoWriter()
   auto key = fmt::format("{}-{}-{}-{}", acceptorName, requesterName, tag, rank);
 
   auto rc = memcached_delete(memc, &key.front(), key.length(), (time_t) 0);
-  PRECICE_WARN_IF(rc != MEMCACHED_SUCCESS, "Failed to delete key {} from memcached server {}:{}. {}", key, addr, port, memcached_strerror(memc, rc));
+  PRECICE_WARN_IF(rc != MEMCACHED_SUCCESS, "Failed to delete key {} from memcached server {}:{}. {}", key, networkInterfaceIpAddr, port, memcached_strerror(memc, rc));
 
   e2.stop();
   Event e3("ConnectionInfoWriter.init.freeMemcachedClient");
@@ -130,10 +128,9 @@ void ConnectionInfoWriter::write(std::string_view info) const
   Event e("ConnectionInfoWriter.write");
   Event e1("ConnectionInfoWriter.write.createMemcachedClient");
 
-  auto addr = "127.0.0.1";
-  auto port = 11211;
+  auto port = 11211; // TODO: Do not hardcode
 
-  auto          config = fmt::format("--SERVER={}:{}", addr, port);
+  auto          config = fmt::format("--SERVER={}:{}", networkInterfaceIpAddr, port);
   memcached_st *memc   = memcached(config.data(), config.length());
 
   e1.stop();
@@ -141,7 +138,7 @@ void ConnectionInfoWriter::write(std::string_view info) const
 
   auto key = fmt::format("{}-{}-{}-{}", acceptorName, requesterName, tag, rank);
   auto rc  = memcached_add(memc, &key.front(), key.length(), &info.front(), info.length(), (time_t) 0, (uint32_t) 0);
-  PRECICE_CHECK(rc == MEMCACHED_SUCCESS, "Failed to add key {} to memcached server {}:{}. {}", key, addr, port, memcached_strerror(memc, rc));
+  PRECICE_CHECK(rc == MEMCACHED_SUCCESS, "Failed to add key {} to memcached server {}:{}. {}", key, networkInterfaceIpAddr, port, memcached_strerror(memc, rc));
 
   e2.stop();
   Event e3("ConnectionInfoWriter.write.freeMemcachedClient");
