@@ -28,27 +28,23 @@ public:
                           std::string_view requesterName,
                           std::string_view tag,
                           int              rank,
-                          std::string_view addressDirectory,
-                          std::string_view networkInterfaceIpAddr) noexcept
+                          std::string_view addressDirectory) noexcept
       : acceptorName(acceptorName),
         requesterName(requesterName),
         tag(tag),
         rank(rank),
-        addressDirectory(addressDirectory),
-        networkInterfaceIpAddr(networkInterfaceIpAddr)
+        addressDirectory(addressDirectory)
   {
   }
 
   ConnectionInfoPublisher(std::string_view acceptorName,
                           std::string_view requesterName,
                           std::string_view tag,
-                          std::string_view addressDirectory,
-                          std::string_view networkInterfaceIpAddr) noexcept
+                          std::string_view addressDirectory) noexcept
       : acceptorName(acceptorName),
         requesterName(requesterName),
         tag(tag),
-        addressDirectory(addressDirectory),
-        networkInterfaceIpAddr(networkInterfaceIpAddr)
+        addressDirectory(addressDirectory)
   {
   }
 
@@ -58,7 +54,6 @@ protected:
   std::string const tag;
   int const         rank = -1;
   std::string const addressDirectory;
-  std::string const networkInterfaceIpAddr;
 
   /// Returns the local directory which is used to store the hashed part.
   std::string getLocalDirectory() const;
@@ -76,18 +71,16 @@ public:
                        std::string_view requesterName,
                        std::string_view tag,
                        int              rank,
-                       std::string_view addressDirectory,
-                       std::string_view networkInterfaceIpAddr) noexcept
-      : ConnectionInfoPublisher(acceptorName, requesterName, tag, rank, addressDirectory, networkInterfaceIpAddr)
+                       std::string_view addressDirectory) noexcept
+      : ConnectionInfoPublisher(acceptorName, requesterName, tag, rank, addressDirectory)
   {
   }
 
   ConnectionInfoReader(std::string_view acceptorName,
                        std::string_view requesterName,
                        std::string_view tag,
-                       std::string_view addressDirectory,
-                       std::string_view networkInterfaceIpAddr) noexcept
-      : ConnectionInfoPublisher(acceptorName, requesterName, tag, addressDirectory, networkInterfaceIpAddr)
+                       std::string_view addressDirectory) noexcept
+      : ConnectionInfoPublisher(acceptorName, requesterName, tag, addressDirectory)
   {
   }
 
@@ -105,18 +98,16 @@ public:
                        std::string_view requesterName,
                        std::string_view tag,
                        int              rank,
-                       std::string_view addressDirectory,
-                       std::string_view networkInterfaceIpAddr) noexcept
-      : ConnectionInfoPublisher(acceptorName, requesterName, tag, rank, addressDirectory, networkInterfaceIpAddr)
+                       std::string_view addressDirectory) noexcept
+      : ConnectionInfoPublisher(acceptorName, requesterName, tag, rank, addressDirectory)
   {
   }
 
   ConnectionInfoWriter(std::string_view acceptorName,
                        std::string_view requesterName,
                        std::string_view tag,
-                       std::string_view addressDirectory,
-                       std::string_view networkInterfaceIpAddr) noexcept
-      : ConnectionInfoPublisher(acceptorName, requesterName, tag, addressDirectory, networkInterfaceIpAddr)
+                       std::string_view addressDirectory) noexcept
+      : ConnectionInfoPublisher(acceptorName, requesterName, tag, addressDirectory)
   {
   }
 
