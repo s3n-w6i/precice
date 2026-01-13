@@ -91,7 +91,7 @@ void SocketCommunication::acceptConnection(std::string const &acceptorName,
 
     _portNumber = acceptor.local_endpoint().port();
     address     = ipAddress + ":" + std::to_string(_portNumber);
-    ConnectionInfoWriter conInfo(acceptorName, requesterName, tag, _addressDirectory, ipAddress);
+    ConnectionInfoWriter conInfo(acceptorName, requesterName, tag, _addressDirectory);
     conInfo.write(address);
     PRECICE_DEBUG("Accept connection at {}", address);
 
@@ -215,7 +215,7 @@ void SocketCommunication::acceptConnectionAsServer(std::string const &acceptorNa
     Event e2("socket.acceptConnectionAsServer.writeConInfo");
 
     address = ipAddress + ":" + std::to_string(_portNumber);
-    ConnectionInfoWriter conInfo(acceptorName, requesterName, tag, acceptorRank, _addressDirectory, ipAddress);
+    ConnectionInfoWriter conInfo(acceptorName, requesterName, tag, acceptorRank, _addressDirectory);
     conInfo.write(address);
 
     e2.stop();
@@ -273,7 +273,7 @@ void SocketCommunication::requestConnection(std::string const &acceptorName,
 
   Event e0("socket.requestConnection.readConInfo");
 
-  ConnectionInfoReader conInfo(acceptorName, requesterName, tag, _addressDirectory, getIpAddress());
+  ConnectionInfoReader conInfo(acceptorName, requesterName, tag, _addressDirectory);
   std::string const    address = conInfo.read();
   PRECICE_DEBUG("Request connection to {}", address);
   auto const        sepidx     = address.find(':');
@@ -368,7 +368,7 @@ void SocketCommunication::requestConnectionAsClient(std::string const   &accepto
     Event e0_0("socket.requestConnectionAsClient.readConInfo");
 
     _isConnected = false;
-    ConnectionInfoReader conInfo(acceptorName, requesterName, tag, acceptorRank, _addressDirectory, getIpAddress());
+    ConnectionInfoReader conInfo(acceptorName, requesterName, tag, acceptorRank, _addressDirectory);
     std::string const    address    = conInfo.read();
     auto const           sepidx     = address.find(':');
     std::string const    ipAddress  = address.substr(0, sepidx);

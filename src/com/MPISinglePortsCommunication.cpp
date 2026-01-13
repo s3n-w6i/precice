@@ -67,7 +67,7 @@ void MPISinglePortsCommunication::acceptConnection(std::string const &acceptorNa
 
   _portName = sm.str();
 
-  ConnectionInfoWriter conPub(acceptorName, requesterName, tag, _addressDirectory, "TODO!");
+  ConnectionInfoWriter conPub(acceptorName, requesterName, tag, _addressDirectory);
   conPub.write(_portName);
 
   int peerCurrent = 0;  // current peer to connect to
@@ -123,7 +123,7 @@ void MPISinglePortsCommunication::acceptConnectionAsServer(std::string const &ac
   MPIResult  res;
 
   if (rank == 0) { // only primary rank opens a port
-    ConnectionInfoWriter conInfo(acceptorName, requesterName, tag, _addressDirectory, "TODO!");
+    ConnectionInfoWriter conInfo(acceptorName, requesterName, tag, _addressDirectory);
 
     utils::StringMaker<MPI_MAX_PORT_NAME> sm;
     res = MPI_Open_port(MPI_INFO_NULL, sm.data());
@@ -158,7 +158,7 @@ void MPISinglePortsCommunication::requestConnection(std::string const &acceptorN
   PRECICE_ASSERT(not isConnected());
   _isAcceptor = false;
 
-  ConnectionInfoReader conInfo(acceptorName, requesterName, tag, _addressDirectory, "TODO!");
+  ConnectionInfoReader conInfo(acceptorName, requesterName, tag, _addressDirectory);
   _portName = conInfo.read();
   PRECICE_DEBUG("Request connection to {}", _portName);
 
@@ -193,7 +193,7 @@ void MPISinglePortsCommunication::requestConnectionAsClient(std::string const   
 
   _isAcceptor = false;
 
-  ConnectionInfoReader conInfo(acceptorName, requesterName, tag, _addressDirectory, "TODO!");
+  ConnectionInfoReader conInfo(acceptorName, requesterName, tag, _addressDirectory);
   _portName = conInfo.read();
   PRECICE_DEBUG("Request connection to {}", _portName);
 

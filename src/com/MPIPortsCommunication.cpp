@@ -60,7 +60,7 @@ void MPIPortsCommunication::acceptConnection(std::string const &acceptorName,
 
   e0.stop();
 
-  ConnectionInfoWriter conInfo(acceptorName, requesterName, tag, _addressDirectory, "TODO!");
+  ConnectionInfoWriter conInfo(acceptorName, requesterName, tag, _addressDirectory);
   conInfo.write(_portName);
   PRECICE_DEBUG("Accept connection at {}", _portName);
 
@@ -145,7 +145,7 @@ void MPIPortsCommunication::acceptConnectionAsServer(std::string const &acceptor
 
   e0.stop();
 
-  ConnectionInfoWriter conInfo(acceptorName, requesterName, tag, acceptorRank, _addressDirectory, "TODO!");
+  ConnectionInfoWriter conInfo(acceptorName, requesterName, tag, acceptorRank, _addressDirectory);
   conInfo.write(_portName);
   PRECICE_DEBUG("Accept connection at {}", _portName);
 
@@ -196,7 +196,7 @@ void MPIPortsCommunication::requestConnection(std::string const &acceptorName,
   PRECICE_ASSERT(not isConnected());
   _isAcceptor = false;
 
-  ConnectionInfoReader conInfo(acceptorName, requesterName, tag, _addressDirectory, "TODO!");
+  ConnectionInfoReader conInfo(acceptorName, requesterName, tag, _addressDirectory);
   _portName = conInfo.read();
 
   PRECICE_DEBUG("Request connection to {}", _portName);
@@ -250,7 +250,7 @@ void MPIPortsCommunication::requestConnectionAsClient(std::string const   &accep
   for (int acceptorRank : acceptorRanks) {
     Event e("mpi.requestConnectionAsClient." + std::to_string(acceptorRank));
 
-    ConnectionInfoReader conInfo(acceptorName, requesterName, tag, acceptorRank, _addressDirectory, "TODO!");
+    ConnectionInfoReader conInfo(acceptorName, requesterName, tag, acceptorRank, _addressDirectory);
     _portName = conInfo.read();
     PRECICE_DEBUG("Request connection to {}", _portName);
 
