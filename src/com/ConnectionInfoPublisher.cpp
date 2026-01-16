@@ -62,6 +62,7 @@ std::string ConnectionInfoReader::read() const
   Event e("ConnectionInfoReader.read");
   Event e1("ConnectionInfoReader.read.createMemcachedClient");
 
+  auto key_prefix = std::getenv("MEMCACHED_KEY_PREFIX");
   auto ip = std::getenv("MEMCACHED_IP");
   auto port = 11211; // TODO: Do not hardcode
 
@@ -71,7 +72,7 @@ std::string ConnectionInfoReader::read() const
   e1.stop();
   Event e2("ConnectionInfoReader.read.getValue");
 
-  auto key = fmt::format("{}-{}-{}-{}", acceptorName, requesterName, tag, rank);
+  auto key = fmt::format("{}-{}-{}-{}-{}", key_prefix, acceptorName, requesterName, tag, rank);
 
   // Retrieve the value
   size_t           value_length;
@@ -103,6 +104,7 @@ ConnectionInfoWriter::~ConnectionInfoWriter()
   Event e("ConnectionInfoWriter.init");
   Event e1("ConnectionInfoWriter.init.createMemcachedClient");
 
+  auto key_prefix = std::getenv("MEMCACHED_KEY_PREFIX");
   auto ip = std::getenv("MEMCACHED_IP");
   auto port = 11211; // TODO: Do not hardcode
 
@@ -112,7 +114,7 @@ ConnectionInfoWriter::~ConnectionInfoWriter()
   e1.stop();
   Event e2("ConnectionInfoWriter.init.deletePreExistingValue");
 
-  auto key = fmt::format("{}-{}-{}-{}", acceptorName, requesterName, tag, rank);
+  auto key = fmt::format("{}-{}-{}-{}-{}", key_prefix, acceptorName, requesterName, tag, rank);
 
   auto rc = memcached_delete(memc, &key.front(), key.length(), (time_t) 0);
   PRECICE_WARN_IF(rc != MEMCACHED_SUCCESS, "Failed to delete key {} from memcached server {}:{}. {}", key, ip, port, memcached_strerror(memc, rc));
@@ -130,6 +132,7 @@ void ConnectionInfoWriter::write(std::string_view info) const
   Event e("ConnectionInfoWriter.write");
   Event e1("ConnectionInfoWriter.write.createMemcachedClient");
 
+  auto key_prefix = std::getenv("MEMCACHED_KEY_PREFIX");
   auto ip = std::getenv("MEMCACHED_IP");
   auto port = 11211; // TODO: Do not hardcode
 
@@ -139,7 +142,7 @@ void ConnectionInfoWriter::write(std::string_view info) const
   e1.stop();
   Event e2("ConnectionInfoWriter.write.addValue");
 
-  auto key = fmt::format("{}-{}-{}-{}", acceptorName, requesterName, tag, rank);
+  auto key = fmt::format("{}-{}-{}-{}-{}", key_prefix, acceptorName, requesterName, tag, rank);
   auto rc  = memcached_add(memc, &key.front(), key.length(), &info.front(), info.length(), (time_t) 0, (uint32_t) 0);
   PRECICE_CHECK(rc == MEMCACHED_SUCCESS, "Failed to add key {} to memcached server {}:{}. {}", key, ip, port, memcached_strerror(memc, rc));
 
