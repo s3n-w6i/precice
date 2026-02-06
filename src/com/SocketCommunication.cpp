@@ -16,8 +16,10 @@
 #include "utils/assertion.hpp"
 #include "utils/networking.hpp"
 #include "utils/span_tools.hpp"
+#include "utils/IntraComm.hpp"
 
 using precice::profiling::Event;
+using precice::utils::IntraComm;
 
 namespace precice::com {
 
@@ -331,11 +333,16 @@ void SocketCommunication::finishAcceptConnectionAsServer(std::string const &acce
   try {
     Event e3("socket.acceptConnectionAsServer.acceptConnections");
 
+    Event e3_0_0_delay("socket.acceptConnectionAsServer.sleep");
+    usleep(utils::IntraComm::getRank() * 5);
+    e3_0_0_delay.stop();
+
     PRECICE_DEBUG("Accepting connection at {}", address);
 
     for (int connection = 0; connection < requesterCommunicatorSize; ++connection) {
       Event e3_0("socket.acceptConnectionAsServer.acceptConnection");
       e3_0.addData("connection", connection);
+
       Event e3_0_0("socket.acceptConnectionAsServer.makeSocket");
 
       auto socket = std::make_shared<Socket>(*_ioContext);
