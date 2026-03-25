@@ -404,7 +404,7 @@ BOOST_AUTO_TEST_CASE(RePartitionRBFGlobal2D)
 {
   PRECICE_TEST();
   using namespace precice;
-  auto m2n = context.connectPrimaryRanks("Solid", "Fluid");
+  auto m2n = context.connectPrimaryRanksConfigured("Solid", "Fluid");
 
   int dimensions = 2;
 
@@ -489,7 +489,7 @@ BOOST_AUTO_TEST_CASE(RePartitionRBFLocal2D1)
 {
   PRECICE_TEST();
   using namespace precice;
-  auto m2n = context.connectPrimaryRanks("Solid", "Fluid");
+  auto m2n = context.connectPrimaryRanksConfigured("Solid", "Fluid");
 
   int dimensions = 2;
 
@@ -564,7 +564,7 @@ BOOST_AUTO_TEST_CASE(RePartitionRBFLocal2D2)
 {
   PRECICE_TEST();
   using namespace precice;
-  auto m2n = context.connectPrimaryRanks("Solid", "Fluid");
+  auto m2n = context.connectPrimaryRanksConfigured("Solid", "Fluid");
 
   int dimensions = 2;
 
@@ -645,7 +645,7 @@ BOOST_AUTO_TEST_CASE(RePartitionRBFLocal3D)
 {
   PRECICE_TEST();
   using namespace precice;
-  auto m2n = context.connectPrimaryRanks("Solid", "Fluid");
+  auto m2n = context.connectPrimaryRanksConfigured("Solid", "Fluid");
 
   int dimensions = 3;
 
