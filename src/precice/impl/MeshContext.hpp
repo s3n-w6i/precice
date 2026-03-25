@@ -27,6 +27,9 @@ struct MeshContext {
   /// Name of participant that creates the mesh.
   std::string receiveMeshFrom;
 
+  /// Names of participants that receive the mesh.
+  std::vector<std::string> provideMeshTo;
+
   /// bounding box to speed up decomposition of received mesh is increased by this safety factor
   double safetyFactor = -1;
 

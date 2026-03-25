@@ -5,6 +5,7 @@
 
 #include "logging/Logger.hpp"
 #include "m2n/SharedPointer.hpp"
+#include "com/SerializedConnectionInfo.hpp"
 
 namespace precice::m2n {
 
@@ -20,8 +21,11 @@ public:
   /// Connect the Secondary ranks of the M2N
   void connectSecondaryRanks();
 
-  /// pre-connect the Secondary ranks of the M2N
-  void preConnectSecondaryRanks();
+  /// prepare pre-connecting the secondary ranks of the M2N
+  com::serialize::SerializedConnectionInfoMap::ConnectionInfoMap preparePreConnectSecondaryRanks();
+
+  /// finalize pre-connecting the Secondary ranks of the M2N
+  void finishPreConnectSecondaryRanks(com::serialize::SerializedConnectionInfoMap::ConnectionInfoMap connectionInfoMap);
 
   /// Cleanup after having established the connection
   void cleanupEstablishment();

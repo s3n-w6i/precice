@@ -48,7 +48,7 @@ void ProvidedPartition::communicate()
   bool twoLevelInitAlreadyUsed = false;
 
   for (auto &m2n : _m2ns) {
-    if (m2n->usesTwoLevelInitialization()) {
+    if (m2n.m2n->usesTwoLevelInitialization()) {
 
       PRECICE_CHECK(not twoLevelInitAlreadyUsed, "Two-level initialization does not yet support multiple receivers of a provided mesh. "
                                                  "Please either switch two-level initialization off in your m2n definition, or "
@@ -58,9 +58,11 @@ void ProvidedPartition::communicate()
 
       Event e("partition.broadcastMeshPartitions." + _mesh->getName(), profiling::Synchronize);
 
+      _mesh->getConnectedRanks();
+
       // communicate the total number of vertices to the other participants primary rank
       if (utils::IntraComm::isPrimary()) {
-        _m2ns[0]->getPrimaryRankCommunication()->send(_mesh->getGlobalNumberOfVertices(), 0);
+        _m2ns[0].m2n->getPrimaryRankCommunication()->send(_mesh->getGlobalNumberOfVertices(), 0);
       }
 
       // the min and max of global vertex IDs of this rank's partition
@@ -70,11 +72,11 @@ void ProvidedPartition::communicate()
       const int maxGlobalVertexID = vertexOffset - 1;
 
       // each rank sends its min/max global vertex index to connected remote ranks
-      _m2ns[0]->broadcastSend(minGlobalVertexID, *_mesh);
-      _m2ns[0]->broadcastSend(maxGlobalVertexID, *_mesh);
+      _m2ns[0].m2n->broadcastSend(minGlobalVertexID, *_mesh);
+      _m2ns[0].m2n->broadcastSend(maxGlobalVertexID, *_mesh);
 
       // each rank sends its mesh partition to connected remote ranks
-      _m2ns[0]->broadcastSendMesh(*_mesh);
+      _m2ns[0].m2n->broadcastSendMesh(*_mesh);
 
     } else {
 
@@ -108,7 +110,7 @@ void ProvidedPartition::communicate()
         PRECICE_CHECK(globalMesh.nVertices() > 0,
                       "The provided mesh \"{}\" is empty. Please set the mesh using setMeshVertex()/setMeshVertices() prior to calling initialize().",
                       globalMesh.getName());
-        com::sendMesh(*m2n->getPrimaryRankCommunication(), 0, globalMesh);
+        com::sendMesh(*m2n.m2n->getPrimaryRankCommunication(), 0, globalMesh);
       }
     }
   }
@@ -159,7 +161,7 @@ void ProvidedPartition::prepare()
     utils::IntraComm::getCommunication()->broadcast(vertexOffsets);
 
     // fill vertex distribution
-    if (std::any_of(_m2ns.begin(), _m2ns.end(), [](const m2n::PtrM2N &m2n) { return not m2n->usesTwoLevelInitialization(); }) && utils::IntraComm::isPrimary()) {
+    if (std::any_of(_m2ns.begin(), _m2ns.end(), [](const m2n::M2NConfiguration::ConfiguredM2N &cm2n) { return not cm2n.m2n->usesTwoLevelInitialization(); }) && utils::IntraComm::isPrimary()) {
       PRECICE_DEBUG("Fill vertex distribution");
       PRECICE_ASSERT(_mesh->getVertexDistribution().empty());
       /// @TODO are these distributions allowed to contain verices already?
@@ -233,17 +235,17 @@ void ProvidedPartition::compute()
 {
   PRECICE_TRACE();
   for (const auto &m2n : _m2ns) {
-    if (m2n->usesTwoLevelInitialization()) {
+    if (m2n.m2n->usesTwoLevelInitialization()) {
 	    Event e("computeProvidedPartition.twoLevelInitialization");
       // @todo this will probably not work for more than one m2n
       PRECICE_ASSERT(_m2ns.size() <= 1);
       // receive communication map from all remote connected ranks
-      m2n->gatherAllCommunicationMap(_mesh->getCommunicationMap(), *_mesh);
+      m2n.m2n->gatherAllCommunicationMap(_mesh->getCommunicationMap(), *_mesh);
     }
   }
 }
 
-void ProvidedPartition::compareBoundingBoxes()
+void ProvidedPartition::compareBoundingBoxes(std::string participantName, std::map<std::string, com::serialize::SerializedConnectionInfoMap::ConnectionInfoMap>* connectionInfos)
 {
   PRECICE_TRACE();
 
@@ -254,14 +256,19 @@ void ProvidedPartition::compareBoundingBoxes()
 
   //@todo coupling mode
 
-  //@todo treatment of multiple m2ns
-  if (not _m2ns[0]->usesTwoLevelInitialization())
+  if (not usesTwoLevelInitialization())
     return;
 
-  // each secondary rank sends its bb to the primary rank
+  bool isAcceptor = _m2ns[0].acceptor == participantName;
+
+  // each secondary rank sends its bb and connection info to the primary rank
   if (utils::IntraComm::isSecondary()) { // secondary
     PRECICE_ASSERT(_mesh->getBoundingBox().getDimension() == _mesh->getDimensions(), "The boundingbox of the local mesh is invalid!");
     com::sendBoundingBox(*utils::IntraComm::getCommunication(), 0, _mesh->getBoundingBox());
+    if (isAcceptor) {
+      std::string connectionInfo = _m2ns[0].m2n->prepareAcceptSecondaryRanksPreConnection(_m2ns[0].acceptor, _m2ns[0].connector);
+      com::sendConnectionInfo(*utils::IntraComm::getCommunication(), 0, connectionInfo);
+    }
   } else { // Primary
 
     PRECICE_ASSERT(utils::IntraComm::getRank() == 0);
@@ -273,6 +280,11 @@ void ProvidedPartition::compareBoundingBoxes()
     mesh::Mesh::BoundingBoxMap bbm;
     mesh::BoundingBox          bb(_mesh->getDimensions());
     bbm.emplace(0, _mesh->getBoundingBox());
+    com::serialize::SerializedConnectionInfoMap::ConnectionInfoMap connectionInfoMap;
+    if (isAcceptor) {
+      std::string connectionInfo = _m2ns[0].m2n->prepareAcceptSecondaryRanksPreConnection(_m2ns[0].acceptor, _m2ns[0].connector);
+      connectionInfoMap.emplace(0, connectionInfo);
+    }
     PRECICE_ASSERT(!bbm.empty(), "The bounding box of the local mesh is invalid!");
 
     // primary rank receives bbs from secondary ranks and stores them in bbm
@@ -284,6 +296,12 @@ void ProvidedPartition::compareBoundingBoxes()
       bbm.emplace(secondaryRank, bb);
       com::receiveBoundingBox(*utils::IntraComm::getCommunication(), secondaryRank, bbm.at(secondaryRank));
 
+      if (isAcceptor) {
+        // initialize connection info
+        connectionInfoMap.emplace(secondaryRank, "");
+        com::receiveConnectionInfo(*utils::IntraComm::getCommunication(), secondaryRank, connectionInfoMap.at(secondaryRank));
+      }
+
       e0_1.stop();
     }
 
@@ -292,8 +310,12 @@ void ProvidedPartition::compareBoundingBoxes()
     Event e1("partition.sendBBsSets." + _mesh->getName());
 
     // primary rank sends number of ranks and bbm to the other primary rank
-    _m2ns[0]->getPrimaryRankCommunication()->send(utils::IntraComm::getSize(), 0);
-    com::sendBoundingBoxMap(*_m2ns[0]->getPrimaryRankCommunication(), 0, bbm);
+    _m2ns[0].m2n->getPrimaryRankCommunication()->send(utils::IntraComm::getSize(), 0);
+    com::sendBoundingBoxMap(*_m2ns[0].m2n->getPrimaryRankCommunication(), 0, bbm);
+    // primary rank sends connection info map to the other primary rank if it is the accepting side
+    if (isAcceptor) {
+      com::sendConnectionInfoMap(*_m2ns[0].m2n->getPrimaryRankCommunication(), 0, connectionInfoMap);
+    }
 
     e1.stop();
   }
@@ -306,7 +328,7 @@ void ProvidedPartition::compareBoundingBoxes()
 
     // primary rank receives feedback map (map of other participant ranks -> connected ranks at this participant)
     // from other participants primary rank
-    std::vector<Rank> connectedRanksList = _m2ns[0]->getPrimaryRankCommunication()->receiveRange(0, com::asVector<Rank>);
+    std::vector<Rank> connectedRanksList = _m2ns[0].m2n->getPrimaryRankCommunication()->receiveRange(0, com::asVector<Rank>);
     remoteConnectionMapSize              = connectedRanksList.size();
 
     e0.stop();
@@ -317,11 +339,24 @@ void ProvidedPartition::compareBoundingBoxes()
       remoteConnectionMap[rank] = {-1};
     }
     if (remoteConnectionMapSize != 0) {
-      com::receiveConnectionMap(*_m2ns[0]->getPrimaryRankCommunication(), 0, remoteConnectionMap);
+      com::receiveConnectionMap(*_m2ns[0].m2n->getPrimaryRankCommunication(), 0, remoteConnectionMap);
     }
 
     e1.stop();
-    Event e2("partition.feedback.broadcastSendConnectionMap");
+    if (!isAcceptor) {
+      Event e2("partition.feedback.receiveConnectionInfoMap");
+
+      com::serialize::SerializedConnectionInfoMap::ConnectionInfoMap connectionInfoMap;
+      for (auto &rank : connectedRanksList) {
+        connectionInfoMap[rank] = "";
+      }
+
+      com::receiveConnectionInfoMap(*_m2ns[0].m2n->getPrimaryRankCommunication(), 0, connectionInfoMap);
+      connectionInfos->emplace(_m2ns[0].acceptor, connectionInfoMap);
+
+      e2.stop();
+    }
+    Event e3("partition.feedback.broadcastSendConnectionMap");
 
     // broadcast the received feedbackMap
     utils::IntraComm::getCommunication()->broadcast(connectedRanksList);
@@ -329,8 +364,15 @@ void ProvidedPartition::compareBoundingBoxes()
       com::broadcastSendConnectionMap(*utils::IntraComm::getCommunication(), remoteConnectionMap);
     }
 
-    e2.stop();
-    Event e3("partition.feedback.checkConnectedRanks");
+    e3.stop();
+    if (!isAcceptor) {
+      Event e4("partition.feedback.broadcastSendConnectionInfoMap");
+
+      com::broadcastSendConnectionInfoMap(*utils::IntraComm::getCommunication(), connectionInfos->at(_m2ns[0].acceptor));
+
+      e4.stop();
+    }
+    Event e5("partition.feedback.checkConnectedRanks");
 
     // primary rank checks which ranks are connected to it
     PRECICE_ASSERT(_mesh->getConnectedRanks().empty());
@@ -346,7 +388,7 @@ void ProvidedPartition::compareBoundingBoxes()
       return ranks;
     }());
 
-    e3.stop();
+    e5.stop();
 
   } else { // Secondary rank
     Event e0("partition.feedback.broadcastConnectedRanksList");
@@ -366,7 +408,21 @@ void ProvidedPartition::compareBoundingBoxes()
     }
 
     e1.stop();
-    Event e2("partition.feedback.checkConnectedRanks");
+    if (!isAcceptor) {
+      Event e2("partition.feedback.broadcastReceiveConnectionInfoMap");
+
+      com::serialize::SerializedConnectionInfoMap::ConnectionInfoMap connectionInfoMap;
+
+      for (auto &rank : connectedRanksList) {
+        connectionInfoMap[rank] = "";
+      }
+      com::broadcastReceiveConnectionInfoMap(*utils::IntraComm::getCommunication(), connectionInfoMap);
+
+      connectionInfos->emplace(_m2ns[0].acceptor, connectionInfoMap);
+
+      e2.stop();
+    }
+    Event e3("partition.feedback.checkConnectedRanks");
 
     PRECICE_ASSERT(_mesh->getConnectedRanks().empty());
     _mesh->setConnectedRanks([&] {
@@ -381,7 +437,7 @@ void ProvidedPartition::compareBoundingBoxes()
       return ranks;
     }());
 
-    e2.stop();
+    e3.stop();
   }
 }
 

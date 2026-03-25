@@ -382,7 +382,7 @@ void ReceivedPartition::filterByBoundingBox()
   }
 }
 
-void ReceivedPartition::compareBoundingBoxes()
+void ReceivedPartition::compareBoundingBoxes(std::string participantName, std::map<std::string, com::serialize::SerializedConnectionInfoMap::ConnectionInfoMap>* connectionInfos)
 {
   PRECICE_TRACE();
 
@@ -402,6 +402,8 @@ void ReceivedPartition::compareBoundingBoxes()
   if (not m2n().usesTwoLevelInitialization())
     return;
 
+  bool isAcceptor = _m2ns[0].acceptor == participantName;
+
   Event e1("partition.compareBoundingBoxes.rankNumberCommunication");
 
   // receive and broadcast number of remote ranks
@@ -417,27 +419,39 @@ void ReceivedPartition::compareBoundingBoxes()
   e1.stop();
   Event e2("partition.compareBoundingBoxes.initBBMap");
 
-  // define and initialize remote bounding box map
+  // define and initialize remote bounding box map and connection info map
   mesh::Mesh::BoundingBoxMap remoteBBMap;
   mesh::BoundingBox          initialBB(_mesh->getDimensions());
 
+  com::serialize::SerializedConnectionInfoMap::ConnectionInfoMap remoteConnectionInfoMap;
+
   for (int remoteRank = 0; remoteRank < numberOfRemoteRanks; remoteRank++) {
     remoteBBMap.emplace(remoteRank, initialBB);
+    if (!isAcceptor) {
+      remoteConnectionInfoMap.emplace(remoteRank, "");
+    }
   }
 
   e2.stop();
   Event e3("partition.compareBoundingBoxes.receiveBBMapAndBroadcast." + _mesh->getName(), profiling::Synchronize);
 
-  // receive and broadcast remote bounding box map
+  // receive and broadcast remote bounding box map and connection info map
   if (utils::IntraComm::isPrimary()) {
     Event e3_1("partition.compareBoundingBoxes.receiveBroadcastBBMap." + _mesh->getName());
 
     com::receiveBoundingBoxMap(*m2n().getPrimaryRankCommunication(), 0, remoteBBMap);
+    if (!isAcceptor) {
+      com::receiveConnectionInfoMap(*m2n().getPrimaryRankCommunication(), 0, remoteConnectionInfoMap);
+    }
 
     e3_1.stop();
     Event e3_2("partition.compareBoundingBoxes.broadcastSendBBMap." + _mesh->getName());
 
     com::broadcastSendBoundingBoxMap(*utils::IntraComm::getCommunication(), remoteBBMap);
+    if (!isAcceptor) {
+      com::broadcastSendConnectionInfoMap(*utils::IntraComm::getCommunication(), remoteConnectionInfoMap);
+      connectionInfos->emplace(_m2ns[0].acceptor, remoteConnectionInfoMap);
+    }
 
     e3_2.stop();
   } else {
@@ -445,6 +459,10 @@ void ReceivedPartition::compareBoundingBoxes()
     Event e3_3("partition.compareBoundingBoxes.broadcastReceiveBBMap." + _mesh->getName());
 
     com::broadcastReceiveBoundingBoxMap(*utils::IntraComm::getCommunication(), remoteBBMap);
+    if (!isAcceptor) {
+      com::broadcastReceiveConnectionInfoMap(*utils::IntraComm::getCommunication(), remoteConnectionInfoMap);
+      connectionInfos->emplace(_m2ns[0].acceptor, remoteConnectionInfoMap);
+    }
 
     e3_3.stop();
   }
@@ -461,6 +479,7 @@ void ReceivedPartition::compareBoundingBoxes()
   if (utils::IntraComm::isPrimary()) {               // Primary
     mesh::Mesh::CommunicationMap connectionMap;      // local ranks -> {remote ranks}
     std::vector<Rank>            connectedRanksList; // local ranks with any connection
+    com::serialize::SerializedConnectionInfoMap::ConnectionInfoMap connectionInfoMap;
 
     Event e6("partition.compareBoundingBoxes.primary.overlappingBBs." + _mesh->getName());
     // connected ranks for primary rank
@@ -482,21 +501,38 @@ void ReceivedPartition::compareBoundingBoxes()
     }
 
     e7.stop();
-    Event e8("partition.compareBoundingBoxes.primary.secondaryConnectedRanks." + _mesh->getName());
+    if (isAcceptor) {
+      std::string connectionInfo = m2n().prepareAcceptSecondaryRanksPreConnection(_m2ns[0].acceptor, _m2ns[0].connector);
+
+      Event e8("partition.compareBoundingBoxes.primary.connectionInfo." + _mesh->getName());
+      connectionInfoMap.emplace(0, connectionInfo);
+      e8.stop();
+    }
+    Event e9("partition.compareBoundingBoxes.secondaryConnectedRanks." + _mesh->getName());
 
     // receive connected ranks from secondary ranks and add them to the connection map
+    // if this is an acceptor, also add all connection infos from secondary ranks to the connection info map
     for (int rank : utils::IntraComm::allSecondaryRanks()) {
-      Event e("partition.compareBoundingBoxes.receive." + std::to_string(rank));
+      Event e9_1("partition.compareBoundingBoxes.receive.secondaryConnectedRanks" + std::to_string(rank));
       std::vector<Rank> secondaryConnectedRanks = utils::IntraComm::getCommunication()->receiveRange(rank, com::asVector<Rank>);
-      e.stop();
+      e9_1.stop();
       if (!secondaryConnectedRanks.empty()) {
         connectedRanksList.push_back(rank);
         connectionMap.emplace(rank, std::move(secondaryConnectedRanks));
       }
+
+      if (isAcceptor) {
+        Event e9_2("partition.compareBoundingBoxes.receive.secondaryConnectionInfos" + std::to_string(rank));
+
+        connectionInfoMap.emplace(rank, "");
+        com::receiveConnectionInfo(*utils::IntraComm::getCommunication(), rank, connectionInfoMap.at(rank));
+
+        e9_2.stop();
+      }
     }
 
-    e8.stop();
-    Event e9("partition.compareBoundingBoxes.primary.sendConnectionMap." + _mesh->getName());
+    e9.stop();
+    Event e10("partition.compareBoundingBoxes.primary.sendConnectionMap." + _mesh->getName());
 
     // send connectionMap to other primary rank
     m2n().getPrimaryRankCommunication()->sendRange(connectedRanksList, 0);
@@ -507,7 +543,14 @@ void ReceivedPartition::compareBoundingBoxes()
                   _mesh->getName());
     com::sendConnectionMap(*m2n().getPrimaryRankCommunication(), 0, connectionMap);
 
-    e9.stop();
+    e10.stop();
+    if (isAcceptor) {
+      Event e11("partition.compareBoundingBoxes.primary.sendConnectionInfoMap." + _mesh->getName());
+
+      com::sendConnectionInfoMap(*m2n().getPrimaryRankCommunication(), 0, connectionInfoMap);
+
+      e11.stop();
+    }
   } else {
     PRECICE_ASSERT(utils::IntraComm::isSecondary());
 
@@ -529,6 +572,14 @@ void ReceivedPartition::compareBoundingBoxes()
     utils::IntraComm::getCommunication()->sendRange(connectedRanks, 0);
 
     e7.stop();
+
+    if (isAcceptor) {
+      std::string connectionInfo = m2n().prepareAcceptSecondaryRanksPreConnection(_m2ns[0].acceptor, _m2ns[0].connector);
+
+      Event e8("partition.compareBoundingBoxes.secondary.sendConnectionInfo." + _mesh->getName());
+      com::sendConnectionInfo(*utils::IntraComm::getCommunication(), 0, connectionInfo);
+      e8.stop();
+    }
   }
 
   e5.stop();
@@ -1042,7 +1093,7 @@ void ReceivedPartition::setOwnerInformation(const std::vector<int> &ownerVec)
 m2n::M2N &ReceivedPartition::m2n()
 {
   PRECICE_ASSERT(_m2ns.size() == 1);
-  return *_m2ns[0];
+  return *_m2ns[0].m2n;
 }
 
 } // namespace precice::partition

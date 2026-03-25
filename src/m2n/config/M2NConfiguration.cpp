@@ -111,10 +111,15 @@ M2NConfiguration::M2NConfiguration(xml::XMLTag &parent)
 
 m2n::PtrM2N M2NConfiguration::getM2N(const std::string &acceptor, const std::string &connector)
 {
+  return getConfiguredM2N(acceptor, connector).m2n;
+}
+
+M2NConfiguration::ConfiguredM2N M2NConfiguration::getConfiguredM2N(const std::string &acceptor, const std::string &connector)
+{
   for (ConfiguredM2N &conf : _m2ns) {
     if ((conf.acceptor == acceptor && conf.connector == connector) ||
         (conf.connector == acceptor && conf.acceptor == connector)) {
-      return conf.m2n;
+      return conf;
     }
   }
   PRECICE_ERROR("There is no m2n communication configured between participants \"" + acceptor + "\" and \"" + connector + "\". Please add an appropriate \"<m2n />\" tag.");

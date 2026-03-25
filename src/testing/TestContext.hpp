@@ -8,6 +8,7 @@
 #include <vector>
 
 #include "m2n/SharedPointer.hpp"
+#include "m2n/config/M2NConfiguration.hpp"
 #include "precice/impl/Types.hpp"
 #include "utils/Parallel.hpp"
 
@@ -270,6 +271,8 @@ public:
    * @see ConnectionOptions
    */
   m2n::PtrM2N connectPrimaryRanks(const std::string &acceptor, const std::string &connector, const ConnectionOptions &options = ConnectionOptions{}) const;
+
+  m2n::M2NConfiguration::ConfiguredM2N connectPrimaryRanksConfigured(const std::string &acceptor, const std::string &connector, const ConnectionOptions &options = ConnectionOptions{}) const;
 
   /// Provides a user- and log-friendly description of the current context
   std::string describe() const;

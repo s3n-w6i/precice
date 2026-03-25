@@ -364,7 +364,9 @@ void ParticipantImpl::setupCommunication()
   PRECICE_INFO("Setting up preliminary secondary communication to coupling partner/s");
   for (auto &m2nPair : _m2ns) {
     auto &bm2n = m2nPair.second;
-    bm2n.preConnectSecondaryRanks();
+    if (bm2n.m2n->usesTwoLevelInitialization()) {
+      bm2n.finishPreConnectSecondaryRanks(_connectionInfos[m2nPair.first]);
+    }
   }
   e5.stop();
 
@@ -1568,7 +1570,7 @@ void ParticipantImpl::compareBoundingBoxes()
   }
 
   for (MeshContext *meshContext : _accessor->usedMeshContexts()) {
-    meshContext->partition->compareBoundingBoxes();
+      meshContext->partition->compareBoundingBoxes(_accessorName, &_connectionInfos);
   }
 }
 

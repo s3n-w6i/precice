@@ -43,7 +43,7 @@ BOOST_AUTO_TEST_CASE(TestGatherAndCommunicate2D)
 {
   using namespace precice;
   PRECICE_TEST();
-  auto m2n = context.connectPrimaryRanks("NASTIN", "SOLIDZ");
+  auto m2n = context.connectPrimaryRanksConfigured("NASTIN", "SOLIDZ");
 
   int dimensions = 2;
 
@@ -116,7 +116,7 @@ BOOST_AUTO_TEST_CASE(TestGatherAndCommunicate3D)
 {
   using namespace precice;
   PRECICE_TEST();
-  auto m2n = context.connectPrimaryRanks("NASTIN", "SOLIDZ");
+  auto m2n = context.connectPrimaryRanksConfigured("NASTIN", "SOLIDZ");
 
   int dimensions = 3;
 
@@ -310,7 +310,7 @@ BOOST_AUTO_TEST_CASE(TestCompareBoundingBoxes2D)
   testing::ConnectionOptions options;
   options.useOnlyPrimaryCom = false;
   options.useTwoLevelInit   = true;
-  auto m2n                  = context.connectPrimaryRanks("NASTIN", "SOLIDZ", options);
+  auto m2n                  = context.connectPrimaryRanksConfigured("NASTIN", "SOLIDZ", options);
 
   int dimensions = 2;
 
@@ -349,7 +349,8 @@ BOOST_AUTO_TEST_CASE(TestCompareBoundingBoxes2D)
 
     ProvidedPartition part(pSolidzMesh);
     part.addM2N(m2n);
-    part.compareBoundingBoxes();
+    std::map<std::string, com::serialize::SerializedConnectionInfoMap::ConnectionInfoMap> connectionInfos;
+    part.compareBoundingBoxes("SOLIDZ", &connectionInfos);
 
     if (context.isPrimary()) { // Primary
       BOOST_TEST(pSolidzMesh->getConnectedRanks().size() == 2);
@@ -378,14 +379,14 @@ BOOST_AUTO_TEST_CASE(TestCompareBoundingBoxes2D)
 
     // we receive other participants communicator size
     int receivedFeedbackSize = 3;
-    m2n->getPrimaryRankCommunication()->receive(receivedFeedbackSize, 0);
+    m2n.m2n->getPrimaryRankCommunication()->receive(receivedFeedbackSize, 0);
 
     for (int i = 0; i < receivedFeedbackSize; i++) {
       receivedGlobalBB.emplace(i, localBB);
     }
 
     // we receive global bounding box from other participant!
-    com::receiveBoundingBoxMap(*m2n->getPrimaryRankCommunication(), 0, receivedGlobalBB);
+    com::receiveBoundingBoxMap(*m2n.m2n->getPrimaryRankCommunication(), 0, receivedGlobalBB);
     // check whether we have received the correct com size
     BOOST_TEST(receivedFeedbackSize == 3);
 
@@ -395,7 +396,7 @@ BOOST_AUTO_TEST_CASE(TestCompareBoundingBoxes2D)
     BOOST_TEST(receivedGlobalBB.at(2) == compareBB.at(2));
 
     std::vector<int> connectedRanks = {0, 1, 2};
-    m2n->getPrimaryRankCommunication()->sendRange(connectedRanks, 0);
+    m2n.m2n->getPrimaryRankCommunication()->sendRange(connectedRanks, 0);
 
     // construct connection map
     std::map<int, std::vector<int>> connectionMap;
@@ -406,7 +407,7 @@ BOOST_AUTO_TEST_CASE(TestCompareBoundingBoxes2D)
     connectionMap[2].push_back(0);
     connectionMap[2].push_back(1);
 
-    com::sendConnectionMap(*m2n->getPrimaryRankCommunication(), 0, connectionMap);
+    com::sendConnectionMap(*m2n.m2n->getPrimaryRankCommunication(), 0, connectionMap);
   }
 }
 
@@ -418,7 +419,7 @@ BOOST_AUTO_TEST_CASE(TestSendBoundingBoxes3D)
   testing::ConnectionOptions options;
   options.useOnlyPrimaryCom = false;
   options.useTwoLevelInit   = true;
-  auto m2n                  = context.connectPrimaryRanks("NASTIN", "SOLIDZ", options);
+  auto m2n                  = context.connectPrimaryRanksConfigured("NASTIN", "SOLIDZ", options);
 
   int dimensions = 3;
 
@@ -457,7 +458,8 @@ BOOST_AUTO_TEST_CASE(TestSendBoundingBoxes3D)
 
     ProvidedPartition part(pSolidzMesh);
     part.addM2N(m2n);
-    part.compareBoundingBoxes();
+    std::map<std::string, com::serialize::SerializedConnectionInfoMap::ConnectionInfoMap> connectionInfos;
+    part.compareBoundingBoxes("SOLIDZ", &connectionInfos);
 
   } else { // NASTIN
     BOOST_TEST(context.isNamed("NASTIN"));
@@ -472,14 +474,14 @@ BOOST_AUTO_TEST_CASE(TestSendBoundingBoxes3D)
 
     // we receive other participants communicator size
     int remoteParComSize = 3;
-    m2n->getPrimaryRankCommunication()->receive(remoteParComSize, 0);
+    m2n.m2n->getPrimaryRankCommunication()->receive(remoteParComSize, 0);
 
     for (int i = 0; i < remoteParComSize; i++) {
       receivedGlobalBB.emplace(i, localBB);
     }
 
     // we receive global bounding box from other participant!
-    com::receiveBoundingBoxMap(*m2n->getPrimaryRankCommunication(), 0, receivedGlobalBB);
+    com::receiveBoundingBoxMap(*m2n.m2n->getPrimaryRankCommunication(), 0, receivedGlobalBB);
 
     // check whether we have received the correct com size
     BOOST_TEST(remoteParComSize == 3);
@@ -491,7 +493,7 @@ BOOST_AUTO_TEST_CASE(TestSendBoundingBoxes3D)
 
     // send empty dummy list of connected ranks as feedback
     std::vector<int> connectedRanksList;
-    m2n->getPrimaryRankCommunication()->sendRange(connectedRanksList, 0);
+    m2n.m2n->getPrimaryRankCommunication()->sendRange(connectedRanksList, 0);
   }
 }
 
@@ -509,7 +511,7 @@ BOOST_AUTO_TEST_CASE(TestCommunicateLocalMeshPartitions)
   options.useOnlyPrimaryCom = false;
   options.useTwoLevelInit   = true;
   options.type              = testing::ConnectionType::PointToPoint;
-  auto m2n                  = context.connectPrimaryRanks("Fluid", "Solid", options);
+  auto m2n                  = context.connectPrimaryRanksConfigured("Fluid", "Solid", options);
 
   if (context.isNamed("Solid")) {
     if (context.isPrimary()) {
@@ -557,15 +559,15 @@ BOOST_AUTO_TEST_CASE(TestCommunicateLocalMeshPartitions)
   mesh->computeBoundingBox();
 
   if (context.isNamed("Solid")) {
-    m2n->createDistributedCommunication(mesh);
+    m2n.m2n->createDistributedCommunication(mesh);
     ProvidedPartition part(mesh);
-    m2n->acceptSecondaryRanksPreConnection("SolidSecondaryRanks", "FluidSecondaryRanks");
+    m2n.m2n->acceptSecondaryRanksPreConnection("SolidSecondaryRanks", "FluidSecondaryRanks");
     part.addM2N(m2n);
     part.communicate();
   } else {
-    m2n->createDistributedCommunication(mesh);
+    m2n.m2n->createDistributedCommunication(mesh);
     ReceivedPartition part(mesh, ReceivedPartition::ON_SECONDARY_RANKS, safetyFactor);
-    m2n->requestSecondaryRanksPreConnection("SolidSecondaryRanks", "FluidSecondaryRanks");
+    m2n.m2n->requestSecondaryRanksPreConnection("SolidSecondaryRanks", "FluidSecondaryRanks");
     part.addM2N(m2n);
 
     part.communicate();
@@ -609,7 +611,7 @@ BOOST_AUTO_TEST_CASE(TestTwoLevelRepartitioning2D)
   options.useOnlyPrimaryCom = false;
   options.useTwoLevelInit   = true;
   options.type              = testing::ConnectionType::PointToPoint;
-  auto m2n                  = context.connectPrimaryRanks("Fluid", "Solid", options);
+  auto m2n                  = context.connectPrimaryRanksConfigured("Fluid", "Solid", options);
 
   if (context.isNamed("Solid")) {
     if (context.isPrimary()) {
@@ -682,11 +684,12 @@ BOOST_AUTO_TEST_CASE(TestTwoLevelRepartitioning2D)
   mesh->computeBoundingBox();
 
   if (context.isNamed("Solid")) {
-    m2n->createDistributedCommunication(mesh);
+    m2n.m2n->createDistributedCommunication(mesh);
     ProvidedPartition part(mesh);
     part.addM2N(m2n);
 
-    part.compareBoundingBoxes();
+    std::map<std::string, com::serialize::SerializedConnectionInfoMap::ConnectionInfoMap> connectionInfos;
+    part.compareBoundingBoxes("Solid", &connectionInfos);
 
     if (context.isPrimary()) {
       BOOST_TEST(mesh->getConnectedRanks().size() == 2);
@@ -698,7 +701,7 @@ BOOST_AUTO_TEST_CASE(TestTwoLevelRepartitioning2D)
       BOOST_TEST(mesh->getConnectedRanks().at(1) == 1);
     }
 
-    m2n->acceptSecondaryRanksPreConnection("FluidSecondaryRanks", "SolidSecondaryRanks");
+    m2n.m2n->acceptSecondaryRanksPreConnection("FluidSecondaryRanks", "SolidSecondaryRanks");
 
     part.communicate();
     part.compute();
@@ -712,7 +715,7 @@ BOOST_AUTO_TEST_CASE(TestTwoLevelRepartitioning2D)
       BOOST_TEST(mesh->getCommunicationMap().at(1).at(1) == 2);
     }
   } else {
-    m2n->createDistributedCommunication(receivedMesh);
+    m2n.m2n->createDistributedCommunication(receivedMesh);
     mapping::PtrMapping boundingFromMapping = mapping::PtrMapping(new mapping::NearestNeighborMapping(mapping::Mapping::CONSISTENT, dimensions));
     mapping::PtrMapping boundingToMapping   = mapping::PtrMapping(new mapping::NearestNeighborMapping(mapping::Mapping::CONSERVATIVE, dimensions));
     boundingFromMapping->setMeshes(receivedMesh, mesh);
@@ -725,9 +728,10 @@ BOOST_AUTO_TEST_CASE(TestTwoLevelRepartitioning2D)
     part.addFromMapping(boundingFromMapping);
     part.addToMapping(boundingToMapping);
 
-    part.compareBoundingBoxes();
+    std::map<std::string, com::serialize::SerializedConnectionInfoMap::ConnectionInfoMap> connectionInfos;
+    part.compareBoundingBoxes("Fluid", &connectionInfos);
 
-    m2n->requestSecondaryRanksPreConnection("FluidSecondaryRanks", "SolidSecondaryRanks");
+    m2n.m2n->requestSecondaryRanksPreConnection("FluidSecondaryRanks", "SolidSecondaryRanks");
 
     part.communicate();
     part.compute();
@@ -751,7 +755,7 @@ BOOST_AUTO_TEST_CASE(TestTwoLevelRepartitioning3D)
   options.useOnlyPrimaryCom = false;
   options.useTwoLevelInit   = true;
   options.type              = testing::ConnectionType::PointToPoint;
-  auto m2n                  = context.connectPrimaryRanks("Fluid", "Solid", options);
+  auto m2n                  = context.connectPrimaryRanksConfigured("Fluid", "Solid", options);
 
   if (context.isNamed("Solid")) {
     if (context.isPrimary()) {
@@ -813,11 +817,12 @@ BOOST_AUTO_TEST_CASE(TestTwoLevelRepartitioning3D)
   mesh->computeBoundingBox();
 
   if (context.isNamed("Solid")) {
-    m2n->createDistributedCommunication(mesh);
+    m2n.m2n->createDistributedCommunication(mesh);
     ProvidedPartition part(mesh);
     part.addM2N(m2n);
 
-    part.compareBoundingBoxes();
+    std::map<std::string, com::serialize::SerializedConnectionInfoMap::ConnectionInfoMap> connectionInfos;
+    part.compareBoundingBoxes("Solid", &connectionInfos);
 
     if (context.isPrimary()) {
       BOOST_TEST(mesh->getConnectedRanks().size() == 2);
@@ -829,7 +834,7 @@ BOOST_AUTO_TEST_CASE(TestTwoLevelRepartitioning3D)
       BOOST_TEST(mesh->getConnectedRanks().at(1) == 1);
     }
 
-    m2n->acceptSecondaryRanksPreConnection("FluidSecondaryRanks", "SolidSecondaryRanks");
+    m2n.m2n->acceptSecondaryRanksPreConnection("FluidSecondaryRanks", "SolidSecondaryRanks");
 
     part.communicate();
     part.compute();
@@ -843,7 +848,7 @@ BOOST_AUTO_TEST_CASE(TestTwoLevelRepartitioning3D)
       BOOST_TEST(mesh->getCommunicationMap().at(1).at(1) == 2);
     }
   } else {
-    m2n->createDistributedCommunication(receivedMesh);
+    m2n.m2n->createDistributedCommunication(receivedMesh);
     mapping::PtrMapping boundingFromMapping = mapping::PtrMapping(new mapping::NearestNeighborMapping(mapping::Mapping::CONSISTENT, dimensions));
     mapping::PtrMapping boundingToMapping   = mapping::PtrMapping(new mapping::NearestNeighborMapping(mapping::Mapping::CONSERVATIVE, dimensions));
     boundingFromMapping->setMeshes(receivedMesh, mesh);
@@ -855,9 +860,10 @@ BOOST_AUTO_TEST_CASE(TestTwoLevelRepartitioning3D)
     part.addFromMapping(boundingFromMapping);
     part.addToMapping(boundingToMapping);
 
-    part.compareBoundingBoxes();
+    std::map<std::string, com::serialize::SerializedConnectionInfoMap::ConnectionInfoMap> connectionInfos;
+    part.compareBoundingBoxes("Fluid", &connectionInfos);
 
-    m2n->requestSecondaryRanksPreConnection("FluidSecondaryRanks", "SolidSecondaryRanks");
+    m2n.m2n->requestSecondaryRanksPreConnection("FluidSecondaryRanks", "SolidSecondaryRanks");
 
     part.communicate();
     part.compute();

@@ -189,9 +189,9 @@ void Configuration::configurePartitionsFor(std::string_view participantName)
               context->meshRequirement = receiverContext->meshRequirement;
             }
 
-            m2n::PtrM2N m2n = _m2nConfiguration->getM2N(receiver->getName(), std::string(participantName));
-            m2n->createDistributedCommunication(context->mesh);
-            context->partition->addM2N(m2n);
+            m2n::M2NConfiguration::ConfiguredM2N cm2n = _m2nConfiguration->getConfiguredM2N(receiver->getName(), std::string(participantName));
+            cm2n.m2n->createDistributedCommunication(context->mesh);
+            context->partition->addM2N(cm2n);
           }
         }
       }
@@ -204,9 +204,9 @@ void Configuration::configurePartitionsFor(std::string_view participantName)
 
       context->partition = partition::PtrPartition(new precice::partition::ReceivedPartition(context->mesh, context->geoFilter, context->safetyFactor, context->allowDirectAccess));
 
-      m2n::PtrM2N m2n = _m2nConfiguration->getM2N(receiver, provider);
-      m2n->createDistributedCommunication(context->mesh);
-      context->partition->addM2N(m2n);
+      m2n::M2NConfiguration::ConfiguredM2N cm2n = _m2nConfiguration->getConfiguredM2N(receiver, provider);
+      cm2n.m2n->createDistributedCommunication(context->mesh);
+      context->partition->addM2N(cm2n);
       for (const precice::impl::MappingContext &mappingContext : context->fromMappingContexts) {
         context->partition->addFromMapping(mappingContext.mapping);
       }

@@ -40,6 +40,16 @@ public:
       const std::string &acceptor,
       const std::string &connector);
 
+  /**
+   * @brief Returns the communication configuration object for the given user names.
+   *
+   * Exits with an error message, when no object is configured for the given
+   * user names.
+   */
+  ConfiguredM2N getConfiguredM2N(
+      const std::string &acceptor,
+      const std::string &connector);
+
   /// Returns all configured communication objects.
   std::vector<ConfiguredM2N> &m2ns()
   {

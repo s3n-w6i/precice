@@ -2,8 +2,11 @@
 
 #include <string>
 #include <vector>
+#include "com/SerializedConnectionInfo.hpp"
 #include "logging/Logger.hpp"
+#include "m2n/M2N.hpp"
 #include "m2n/SharedPointer.hpp"
+#include "m2n/config/M2NConfiguration.hpp"
 #include "mapping/SharedPointer.hpp"
 #include "mesh/SharedPointer.hpp"
 
@@ -35,7 +38,7 @@ public:
   virtual ~Partition() = default;
 
   /// Intersections between bounding boxes around each rank are computed
-  virtual void compareBoundingBoxes() = 0;
+  virtual void compareBoundingBoxes(std::string participantName, std::map<std::string, com::serialize::SerializedConnectionInfoMap::ConnectionInfoMap>* connectionInfos) = 0;
 
   /// The mesh is communicated between both primary ranks (if required)
   virtual void communicate() = 0;
@@ -53,9 +56,15 @@ public:
     _toMappings.push_back(std::move(toMapping));
   }
 
-  void addM2N(m2n::PtrM2N m2n)
+  void addM2N(m2n::M2NConfiguration::ConfiguredM2N m2n)
   {
     _m2ns.push_back(m2n);
+  }
+
+  bool usesTwoLevelInitialization()
+  {
+    //@todo treatment of multiple m2ns
+    return _m2ns.size() == 1 && _m2ns[0].m2n->usesTwoLevelInitialization();
   }
 
 protected:
@@ -66,7 +75,7 @@ protected:
   std::vector<mapping::PtrMapping> _toMappings;
 
   /// m2n connection to each connected participant
-  std::vector<m2n::PtrM2N> _m2ns;
+  std::vector<m2n::M2NConfiguration::ConfiguredM2N> _m2ns;
 
 private:
   logging::Logger _log{"partition::Partition"};

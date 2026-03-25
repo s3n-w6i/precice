@@ -22,6 +22,8 @@
 #include "profiling/EventUtils.hpp"
 #include "query/Index.hpp"
 #include "testing/TestContext.hpp"
+
+#include "m2n/config/M2NConfiguration.hpp"
 #include "testing/Testing.hpp"
 #include "utils/IntraComm.hpp"
 #include "utils/Parallel.hpp"
@@ -283,6 +285,15 @@ m2n::PtrM2N TestContext::connectPrimaryRanks(const std::string &acceptor, const 
     throw std::runtime_error{"You try to connect " + acceptor + " and " + connector + ", but this context is named " + name};
   }
   return m2n;
+}
+
+m2n::M2NConfiguration::ConfiguredM2N TestContext::connectPrimaryRanksConfigured(const std::string &acceptor, const std::string &connector, const ConnectionOptions &options) const
+{
+  auto m2n = connectPrimaryRanks(acceptor, connector, options);
+
+  return {
+    m2n
+  };
 }
 
 std::string TestContext::describe() const

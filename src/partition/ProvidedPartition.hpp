@@ -26,7 +26,7 @@ public:
   /// All distribution data structures are set up.
   void compute() override;
 
-  void compareBoundingBoxes() override;
+  void compareBoundingBoxes(std::string participantName, std::map<std::string, com::serialize::SerializedConnectionInfoMap::ConnectionInfoMap>* connectionInfos) override;
 
 private:
   void prepare();

@@ -1,5 +1,6 @@
 #include <memory>
 
+#include <boost/optional/optional.hpp>
 #include "com/Communication.hpp"
 #include "com/Extra.hpp"
 #include "com/SharedPointer.hpp"
@@ -7,9 +8,9 @@
 #include "m2n/BoundM2N.hpp"
 #include "m2n/M2N.hpp"
 #include "precice/impl/Types.hpp"
+#include "profiling/Event.hpp"
 #include "utils/IntraComm.hpp"
 #include "utils/assertion.hpp"
-#include "profiling/Event.hpp"
 
 using precice::profiling::Event;
 
@@ -53,20 +54,19 @@ void BoundM2N::connectSecondaryRanks()
   }
 }
 
-void BoundM2N::preConnectSecondaryRanks()
+com::serialize::SerializedConnectionInfoMap::ConnectionInfoMap BoundM2N::preparePreConnectSecondaryRanks()
 {
-  if (not m2n->usesTwoLevelInitialization())
-    return;
-
+  PRECICE_ASSERT(m2n->usesTwoLevelInitialization());
   PRECICE_WARN("Two-level initialization is still in beta testing. Several edge cases are known to fail. Please report problems nevertheless.");
-  Event e("bound-m2n.preConnectSecondaryRanks");
+  Event e("bound-m2n.preparePreConnectSecondaryRanks");
+
+  std::map<Rank, std::string> connectionInfoMap;
 
   // Accepting side (set up, gather connection info, communicate to requesting side)
   if (!isRequesting) {
     // Set up accepting side
     PRECICE_DEBUG("Setting up preliminary secondary connections from {}", localName);
-    std::string connectionInfo;
-    connectionInfo = m2n->prepareAcceptSecondaryRanksPreConnection(localName, remoteName);
+    std::string connectionInfo = m2n->prepareAcceptSecondaryRanksPreConnection(localName, remoteName);
     PRECICE_DEBUG("Set up preliminary secondary connections from {}. Ready for establishing connections.", localName);
 
     // Gather connection info and communicate it
@@ -77,8 +77,6 @@ void BoundM2N::preConnectSecondaryRanks()
     } else { // Primary
       // Gather connection info
       Event e1("bound-m2n.gatherConnectionInfoMap");
-
-      std::map<Rank, std::string> connectionInfoMap;
 
       // Store the primary rank's connection info as well
       connectionInfoMap.emplace(0, connectionInfo);
@@ -92,36 +90,22 @@ void BoundM2N::preConnectSecondaryRanks()
       }
 
       e1.stop();
-
-      // Communicate connection info via primaries
-      Event e2("bound-m2n.sendConnectionInfoMap");
-      com::sendConnectionInfoMap(*m2n->getPrimaryRankCommunication(), 0, connectionInfoMap);
-      e2.stop();
     }
+  }
 
+  return connectionInfoMap;
+}
+
+void BoundM2N::finishPreConnectSecondaryRanks(com::serialize::SerializedConnectionInfoMap::ConnectionInfoMap connectionInfoMap)
+{
+  Event e("bound-m2n.finishPreConnectSecondaryRanks");
+
+  // Accepting side (set up, gather connection info, communicate to requesting side)
+  if (!isRequesting) {
     PRECICE_DEBUG("Establishing preliminary secondary connections to {}", remoteName);
     m2n->finishAcceptSecondaryRanksPreConnection(localName, remoteName);
     PRECICE_DEBUG("Established preliminary secondary connections to {}", remoteName);
-  } else { // isRequesting
-    com::serialize::SerializedConnectionInfoMap::ConnectionInfoMap connectionInfoMap;
-
-    if (utils::IntraComm::isPrimary()) {
-      // Communicate connection info via primaries
-      Event e1("bound-m2n.receiveConnectionInfoMap");
-      com::receiveConnectionInfoMap(*m2n->getPrimaryRankCommunication(), 0, connectionInfoMap);
-      e1.stop();
-
-      // Scatter connection info
-      Event e2("bound-m2n.scatterSendConnectionInfoMap");
-      com::broadcastSendConnectionInfoMap(*utils::IntraComm::getCommunication(), connectionInfoMap);
-      e2.stop();
-    } else {
-      // Receive connection info from scatter
-      Event e1("bound-m2n.scatterReceiveConnectionInfoMap");
-      com::broadcastReceiveConnectionInfoMap(*utils::IntraComm::getCommunication(), connectionInfoMap);
-      e1.stop();
-    }
-
+  } else {
     // Connect to the accepting side
     PRECICE_DEBUG("Awaiting preliminary secondary connections from {}", remoteName);
     m2n->requestSecondaryRanksPreConnection(remoteName, localName, connectionInfoMap);

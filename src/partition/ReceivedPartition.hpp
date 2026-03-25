@@ -48,7 +48,7 @@ public:
 
   void compute() override;
 
-  void compareBoundingBoxes() override;
+  void compareBoundingBoxes(std::string participantName, std::map<std::string, com::serialize::SerializedConnectionInfoMap::ConnectionInfoMap>* connectionInfos) override;
 
 private:
   /// return the one m2n, a ReceivedPartition can only have one m2n

@@ -331,6 +331,9 @@ private:
 
   std::map<std::string, m2n::BoundM2N> _m2ns;
 
+  /// m2n key (in _m2ns) to connection info map mapping.
+  std::map<std::string, com::serialize::SerializedConnectionInfoMap::ConnectionInfoMap> _connectionInfos;
+
   /// Holds information about solvers participating in the coupled simulation.
   std::vector<impl::PtrParticipant> _participants;
 
