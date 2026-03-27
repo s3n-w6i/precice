@@ -209,6 +209,7 @@ std::string M2N::prepareAcceptSecondaryRanksPreConnection(
     Event e1("m2n.prepareAcceptSecondaryRanksPreConnection." + std::to_string(pair.first));
 
     std::string connectionInfo = pair.second->prepareAcceptPreConnection(acceptorName, requesterName);
+    PRECICE_ASSERT(!connectionInfo.empty(), "Connection info string must not be empty");
 
     e1.stop();
 
