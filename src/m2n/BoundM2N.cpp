@@ -107,14 +107,14 @@ void BoundM2N::finishPreConnectSecondaryRanks(com::serialize::SerializedConnecti
 
   // Accepting side (set up, gather connection info, communicate to requesting side)
   if (isRequesting) {
-    PRECICE_DEBUG("Establishing preliminary secondary connections to {}", remoteName);
+    PRECICE_DEBUG("Awaiting preliminary secondary connections from {}", remoteName);
     m2n->finishAcceptSecondaryRanksPreConnection(localName, remoteName);
-    PRECICE_DEBUG("Established preliminary secondary connections to {}", remoteName);
+    PRECICE_DEBUG("Established preliminary secondary connections from {}", remoteName);
   } else {
     // Connect to the accepting side
-    PRECICE_DEBUG("Awaiting preliminary secondary connections from {}", remoteName);
+    PRECICE_DEBUG("Establishing preliminary secondary connections to {}", remoteName);
     m2n->requestSecondaryRanksPreConnection(remoteName, localName, connectionInfoMap);
-    PRECICE_DEBUG("Established preliminary secondary connections from {}", remoteName);
+    PRECICE_DEBUG("Established preliminary secondary connections to {}", remoteName);
   }
 }
 
