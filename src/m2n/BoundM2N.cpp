@@ -69,6 +69,8 @@ com::serialize::SerializedConnectionInfoMap::ConnectionInfoMap BoundM2N::prepare
     std::string connectionInfo = m2n->prepareAcceptSecondaryRanksPreConnection(localName, remoteName);
     PRECICE_DEBUG("Set up preliminary secondary connections from {}. Ready for establishing connections.", localName);
 
+    PRECICE_TRACE("Connection information is: {}", connectionInfo);
+
     // Gather connection info and communicate it
     if (utils::IntraComm::isSecondary()) {
       Event e1("bound-m2n.gatherSendConnectionInfo");
@@ -87,6 +89,8 @@ com::serialize::SerializedConnectionInfoMap::ConnectionInfoMap BoundM2N::prepare
         Event e2("bound-m2n.gatherReceiveConnectionInfo");
         com::receiveConnectionInfo(*utils::IntraComm::getCommunication(), secondaryRank, connectionInfoMap.at(secondaryRank));
         e2.stop();
+
+        PRECICE_DEBUG("Updated connection information map after receiving from {}: {}", secondaryRank, connectionInfoMap);
       }
 
       e1.stop();
