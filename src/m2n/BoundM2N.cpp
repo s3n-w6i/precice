@@ -63,7 +63,7 @@ com::serialize::SerializedConnectionInfoMap::ConnectionInfoMap BoundM2N::prepare
   std::map<Rank, std::string> connectionInfoMap;
 
   // Accepting side (set up, gather connection info, communicate to requesting side)
-  if (!isRequesting) {
+  if (isRequesting) {
     // Set up accepting side
     PRECICE_DEBUG("Setting up preliminary secondary connections from {}", localName);
     std::string connectionInfo = m2n->prepareAcceptSecondaryRanksPreConnection(localName, remoteName);
@@ -102,7 +102,7 @@ void BoundM2N::finishPreConnectSecondaryRanks(com::serialize::SerializedConnecti
   Event e("bound-m2n.finishPreConnectSecondaryRanks");
 
   // Accepting side (set up, gather connection info, communicate to requesting side)
-  if (!isRequesting) {
+  if (isRequesting) {
     PRECICE_DEBUG("Establishing preliminary secondary connections to {}", remoteName);
     m2n->finishAcceptSecondaryRanksPreConnection(localName, remoteName);
     PRECICE_DEBUG("Established preliminary secondary connections to {}", remoteName);
