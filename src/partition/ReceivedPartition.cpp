@@ -442,6 +442,7 @@ void ReceivedPartition::compareBoundingBoxes(std::string participantName, std::m
     com::receiveBoundingBoxMap(*m2n().getPrimaryRankCommunication(), 0, remoteBBMap);
     if (!isAcceptor) {
       com::receiveConnectionInfoMap(*m2n().getPrimaryRankCommunication(), 0, remoteConnectionInfoMap);
+      PRECICE_DEBUG("Received connection info map from {}: {}", _mesh->getName(), remoteConnectionInfoMap);
     }
 
     e3_1.stop();
