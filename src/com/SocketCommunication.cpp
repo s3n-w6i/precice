@@ -569,6 +569,7 @@ void SocketCommunication::requestConnectionAsClient(std::string const           
     _isConnected = false;
 
     std::string const address    = connectionInfoMap.at(acceptorRank);
+    PRECICE_ASSERT(!address.empty(), "Address from connection information must not be empty");
     auto const        sepidx     = address.find(':');
     std::string const ipAddress  = address.substr(0, sepidx);
     std::string const portNumber = address.substr(sepidx + 1);
