@@ -495,10 +495,6 @@ void ReceivedPartition::compareBoundingBoxes(std::string participantName, std::m
 
     PRECICE_ASSERT(_mesh->getConnectedRanks().empty());
     _mesh->setConnectedRanks(connectedRanks);
-    if (not connectedRanks.empty()) {
-      connectionMap.emplace(0, std::move(connectedRanks));
-      connectedRanksList.push_back(0);
-    }
 
     e7.stop();
     if (isAcceptor) {
@@ -512,10 +508,12 @@ void ReceivedPartition::compareBoundingBoxes(std::string participantName, std::m
 
     // receive connected ranks from secondary ranks and add them to the connection map
     // if this is an acceptor, also add all connection infos from secondary ranks to the connection info map
-    for (int rank : utils::IntraComm::allSecondaryRanks()) {
-      Event e9_1("partition.compareBoundingBoxes.receive.secondaryConnectedRanks" + std::to_string(rank));
-      std::vector<Rank> secondaryConnectedRanks = utils::IntraComm::getCommunication()->receiveRange(rank, com::asVector<Rank>);
-      e9_1.stop();
+
+    std::vector<std::vector<Rank>> allSecondaryConnectedRanks = utils::IntraComm::getCommunication()->gatherRanges(connectedRanks, com::asVector<int>);
+
+    for (int rank = 0; rank < allSecondaryConnectedRanks.size(); rank++) {
+      std::vector<Rank> secondaryConnectedRanks = allSecondaryConnectedRanks[rank];
+
       if (!secondaryConnectedRanks.empty()) {
         connectedRanksList.push_back(rank);
         connectionMap.emplace(rank, std::move(secondaryConnectedRanks));
@@ -569,7 +567,7 @@ void ReceivedPartition::compareBoundingBoxes(std::string participantName, std::m
     Event e7("partition.compareBoundingBoxes.secondary.sendConnectedRanks." + _mesh->getName());
 
     // send connected ranks to primary rank
-    utils::IntraComm::getCommunication()->sendRange(connectedRanks, 0);
+    utils::IntraComm::getCommunication()->gatherRanges(connectedRanks, com::asVector<int>);
 
     e7.stop();
 

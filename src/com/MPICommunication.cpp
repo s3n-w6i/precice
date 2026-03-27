@@ -3,11 +3,13 @@
 #include <cstddef>
 #include <ostream>
 
+#include <numeric>
 #include "com/MPICommunication.hpp"
 #include "com/MPIRequest.hpp"
 #include "logging/LogMacros.hpp"
 #include "precice/impl/Types.hpp"
 #include "utils/span_tools.hpp"
+#include "utils/IntraComm.hpp"
 
 template <size_t>
 struct MPI_Select_unsigned_integer_datatype;
@@ -327,6 +329,76 @@ PtrRequest MPICommunication::aReceive(bool &itemToReceive, Rank rankSender)
             &request);
 
   return PtrRequest(new MPIRequest(request));
+}
+
+void MPICommunication::gather(int itemToSend, std::vector<int> &itemsToReceive)
+{
+  PRECICE_TRACE(itemToSend, itemsToReceive.size());
+
+  Rank rootRank = adjustRank(0);
+  MPI_Comm comm = communicator(rootRank); // TODO: We cannot just assume that the communicator is the same for all!
+
+  if (utils::IntraComm::isPrimary()) {
+    int commSize;
+    MPI_Comm_size(comm, &commSize);
+
+    itemsToReceive.resize(commSize);
+  }
+
+  MPI_Gather(&itemToSend,
+             1,
+             MPI_INT,
+             itemsToReceive.data(),
+             1,
+             MPI_INT,
+             rootRank,
+             comm
+  );
+}
+
+void MPICommunication::gather(span<const int> itemToSend, std::vector<std::vector<int>>& itemsToReceive, const std::vector<int>& recvcounts)
+{
+  PRECICE_TRACE(itemToSend.size(), itemsToReceive.size(), recvcounts);
+
+  Rank rootRank = adjustRank(0);
+  bool isPrimary = utils::IntraComm::isPrimary();
+
+  std::vector<int> flatBuffer;
+  std::vector<int> displs;
+
+  if (isPrimary) {
+    displs.resize(recvcounts.size());
+    int totalSize = std::accumulate(recvcounts.begin(), recvcounts.end(), 0);
+
+    std::exclusive_scan(
+        recvcounts.begin(),
+        recvcounts.end(),
+        displs.begin(),
+        0);
+    flatBuffer.resize(totalSize);
+  }
+
+  PRECICE_WARN("This gather only works if all ranks are in the same communicator. It will likely crash when using mpi-multiple-ports (MPIPortsCommunication instead of MPISinglePortsCommunication)");
+
+  MPI_Gatherv(itemToSend.data(),
+              itemToSend.size(),
+              MPI_INT,
+              isPrimary ? flatBuffer.data() : nullptr,
+              isPrimary ? recvcounts.data() : nullptr,
+              isPrimary ? displs.data() : nullptr,
+              MPI_INT,
+              rootRank,
+              communicator(rootRank) // TODO: We cannot just assume that the communicator is the same for all!
+  );
+
+  if (isPrimary) {
+    for (int i = 0; i < recvcounts.size(); i++) {
+      itemsToReceive[i] = std::vector<int>(
+        flatBuffer.begin() + displs[i],
+        flatBuffer.begin() + displs[i] + recvcounts[i]
+      );
+    }
+  }
 }
 
 } // namespace precice::com
