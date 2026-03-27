@@ -267,7 +267,7 @@ void M2N::requestSecondaryRanksPreConnection(
     const std::string                                                    &requesterName,
     const com::serialize::SerializedConnectionInfoMap::ConnectionInfoMap &connectionInfoMap)
 {
-  PRECICE_TRACE(acceptorName, requesterName);
+  PRECICE_TRACE(acceptorName, requesterName, connectionInfoMap);
   PRECICE_ASSERT(not _useOnlyPrimaryCom);
   Event e("m2n.requestSecondaryRanksPreConnection", profiling::Synchronize);
 

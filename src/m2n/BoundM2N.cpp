@@ -98,6 +98,7 @@ com::serialize::SerializedConnectionInfoMap::ConnectionInfoMap BoundM2N::prepare
 
 void BoundM2N::finishPreConnectSecondaryRanks(com::serialize::SerializedConnectionInfoMap::ConnectionInfoMap connectionInfoMap)
 {
+  PRECICE_TRACE(connectionInfoMap);
   Event e("bound-m2n.finishPreConnectSecondaryRanks");
 
   // Accepting side (set up, gather connection info, communicate to requesting side)

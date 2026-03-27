@@ -683,7 +683,7 @@ void PointToPointCommunication::requestPreConnection(std::string const          
                                                      std::string const                                                    &requesterName,
                                                      com::serialize::SerializedConnectionInfoMap::ConnectionInfoMap const &connectionInfoMap)
 {
-  PRECICE_TRACE(acceptorName, requesterName);
+  PRECICE_TRACE(acceptorName, requesterName, connectionInfoMap);
   PRECICE_ASSERT(not isConnected(), "Already connected.");
 
   Event e0("m2n.requestPreConnection.getConnectedRanks");
