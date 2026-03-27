@@ -305,6 +305,8 @@ void ProvidedPartition::compareBoundingBoxes(std::string participantName, std::m
       e0_1.stop();
     }
 
+    PRECICE_DEBUG("Built connection info map: {}", connectionInfoMap);
+
     e0.stop();
 
     Event e1("partition.sendBBsSets." + _mesh->getName());
